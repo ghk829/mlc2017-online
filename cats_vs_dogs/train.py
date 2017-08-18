@@ -42,7 +42,7 @@ if __name__ == "__main__":
       "File glob for the training dataset.")
 
   flags.DEFINE_string(
-      "model", "LogisticModel",
+      "model", "MyModel",
       "Which architecture to use for the model. Models are defined "
       "in models.py.")
   flags.DEFINE_bool(
@@ -53,7 +53,7 @@ if __name__ == "__main__":
   # Training flags.
   flags.DEFINE_integer("batch_size", 512,
                        "How many examples to process per batch for training.")
-  flags.DEFINE_string("label_loss", "SoftmaxLoss",
+  flags.DEFINE_string("label_loss", "CrossEntropyLoss",
                       "Which loss function to use for training the model.")
   flags.DEFINE_float(
       "regularization_penalty", 1.0,

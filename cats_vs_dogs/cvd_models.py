@@ -36,7 +36,6 @@ class LogisticModel(models.BaseModel):
       A dictionary with a tensor containing the probability predictions of the
       model in the 'predictions' key. The dimensions of the tensor are
       batch_size x num_classes."""
-    print model_input.get_shape()
     net = slim.flatten(model_input)
     output = slim.fully_connected(
         net, num_classes - 1, activation_fn=tf.nn.sigmoid,
@@ -44,28 +43,16 @@ class LogisticModel(models.BaseModel):
     return {"predictions": output}
     
 class MyModel(models.BaseModel):
-  """Logistic model with L2 regularization."""
 
   def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
-    """Creates a logistic model.
-
-    Args:
-      model_input: 'batch' x 'num_features' matrix of input features.
-      vocab_size: The number of classes in the dataset.
-
-    Returns:
-      A dictionary with a tensor containing the probability predictions of the
-      model in the 'predictions' key. The dimensions of the tensor are
-      batch_size x num_classes."""
-    net = slim.conv2d(model_input, 2, [2, 2], stride=1, padding='SAME', scope='conv1')
-    net = slim.max_pool2d(net, [2,2], padding='SAME',scope='pool1')
-    net = slim.conv2d(net, 3,[3,3],stride=2,padding='SAME',scope='conv2')
-    net = slim.max_pool2d(net, [2,2], padding='SAME',scope='pool2')
-    net = slim.flatten(net)
-    output = slim.fully_connected(
-        net, num_classes - 1, activation_fn=tf.nn.sigmoid,
-        weights_regularizer=slim.l2_regularizer(l2_penalty))
-    return {"predictions": output}
+  	net = slim.conv2d(model_input, 2, [2, 2], stride=1, padding='SAME', scope='conv1')
+  	net = slim.max_pool2d(net, [2,2], padding='SAME',scope='pool1')
+  	net = slim.conv2d(net, 3,[3,3],stride=2,padding='SAME',scope='conv2')
+  	net = slim.max_pool2d(net, [2,2], padding='SAME',scope='pool2')
+  	net = slim.flatten(net)
+  	output = slim.fully_connected(net, num_classes - 1, activation_fn=tf.nn.sigmoid,
+  	weights_regularizer=slim.l2_regularizer(l2_penalty))
+  	return {"predictions": output}
 
 class MoeModel(models.BaseModel):
   """A softmax over a mixture of logistic models (with L2 regularization)."""
