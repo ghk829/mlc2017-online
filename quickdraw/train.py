@@ -183,8 +183,8 @@ def build_graph(reader,
                 optimizer_class=tf.train.AdamOptimizer,
                 clip_gradient_norm=1.0,
                 regularization_penalty=1,
-                num_readers=8,
-                num_epochs=10000):
+                num_readers=4,
+                num_epochs=None):
   """Creates the Tensorflow graph.
 
   This will only be called once in the life of
