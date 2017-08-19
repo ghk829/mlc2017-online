@@ -55,7 +55,7 @@ class LogisticModel(BaseModel):
 
 class ResnetModel(BaseModel):
 # %%
-  def residual_network(self, model_input, n_outputs = 10,
+  def create_model(self, model_input, n_outputs = 10,
                      activation=tf.nn.relu, l2_penalty = 1e-8, **unused_params ):
 
     # %%
