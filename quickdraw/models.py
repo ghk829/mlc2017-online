@@ -32,27 +32,6 @@ class BaseModel(object):
   def create_model(self, unused_model_input, **unused_params):
     raise NotImplementedError()
 
-class LogisticModel(BaseModel):
-  """Logistic model with L2 regularization."""
-
-  def create_model(self, model_input, num_classes=10, l2_penalty=1e-8, **unused_params):
-    """Creates a logistic model.
-
-    Args:
-      model_input: 'batch' x 'num_features' matrix of input features.
-      num_classes: The number of classes in the dataset.
-
-    Returns:
-      A dictionary with a tensor containing the probability predictions of the
-      model in the 'predictions' key. The dimensions of the tensor are
-      batch_size x num_classes."""
-    net = slim.flatten(model_input)
-    output = slim.fully_connected(
-        net, num_classes, activation_fn=None,
-        weights_regularizer=slim.l2_regularizer(l2_penalty))
-    return {"predictions": output}
-  
-
 class ResnetModel(BaseModel):
 # %%
   def create_model(self, model_input, num_classes=10, l2_penalty=1e-8, **unused_params):
@@ -135,3 +114,25 @@ class ResnetModel(BaseModel):
         net, num_classes, activation_fn = tf.nn.softmax,
         weights_regularizer=slim.l2_regularizer(l2_penalty))
     return {"predictions": output}
+
+  
+  class LogisticModel(BaseModel):
+  """Logistic model with L2 regularization."""
+
+  def create_model(self, model_input, num_classes=10, l2_penalty=1e-8, **unused_params):
+    """Creates a logistic model.
+
+    Args:
+      model_input: 'batch' x 'num_features' matrix of input features.
+      num_classes: The number of classes in the dataset.
+
+    Returns:
+      A dictionary with a tensor containing the probability predictions of the
+      model in the 'predictions' key. The dimensions of the tensor are
+      batch_size x num_classes."""
+    net = slim.flatten(model_input)
+    output = slim.fully_connected(
+        net, num_classes, activation_fn=None,
+        weights_regularizer=slim.l2_regularizer(l2_penalty))
+    return {"predictions": output}
+  
