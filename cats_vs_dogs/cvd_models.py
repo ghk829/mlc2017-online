@@ -25,14 +25,7 @@ import tensorflow.contrib.slim as slim
 class KHModel(models.BaseModel):
 
   def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
-  	IMAGE_SIZE = 24
-  	CHANNELS=3 		
-  	input = tf.image.resize_image_with_crop_or_pad(model_input, IMAGE_SIZE, IMAGE_SIZE)
-  	input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), input)
-  	input = tf.map_fn(lambda img: tf.image.random_flip_left_right(img), input)
-  	input = tf.map_fn(lambda img: tf.image.random_brightness(img,max_delta=63), input)
-  	input = tf.map_fn(lambda img: tf.image.random_contrast(img,lower=0.2, upper=1.8), input)
-  	input = tf.image.rgb_to_grayscale(input)
+  	input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), model_input)
   	with tf.variable_scope('Net') as sc:
   		net = slim.conv2d(input, 32, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv1')
 	  	net = slim.max_pool2d(net, [2,2], stride=2,padding='SAME',scope='pool1')
@@ -42,8 +35,6 @@ class KHModel(models.BaseModel):
 	  	net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,name='norm2')
 	  	net = slim.flatten(net)
 	  	net = slim.fully_connected(net, 400, activation_fn=tf.nn.relu,scope='fc_1')
-	  	net = slim.dropout(net,0.5)
-	  	net = slim.fully_connected(net, 200, activation_fn=tf.nn.relu,scope='fc_2')
 	  	net = slim.dropout(net,0.5)
 	  	output = slim.fully_connected(net, num_classes - 1, activation_fn=tf.nn.sigmoid,
 	  	weights_regularizer=slim.l2_regularizer(l2_penalty))
