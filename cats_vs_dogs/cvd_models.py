@@ -70,15 +70,36 @@ class LogisticModel(models.BaseModel):
         weights_regularizer=slim.l2_regularizer(l2_penalty))
     return {"predictions": output}
     
+class JJModel(models.BaseModel):
 
-
-
-
-
-
-
-
-
+  def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
+  	net = slim.conv2d(model_input, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv1')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv2')
+  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool1')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv3')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv4')
+  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool2')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv5')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv6')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv7')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv8')
+  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool3')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv9')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv10')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv11')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv12')
+  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool4')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv13')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv14')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv15')
+  	net = slim.conv2d(net, 2, [3, 3], stride=1, padding='SAME', activation_fn=tf.nn.relu, scope='conv16')
+  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool5')
+  	net = slim.flatten(net)
+  	output = slim.fully_connected(net, num_classes - 1, activation_fn=tf.nn.sigmoid,
+  	weights_regularizer=slim.l2_regularizer(l2_penalty))
+  	return {"predictions": output}
+  	
+	
 
 class MoeModel(models.BaseModel):
   """A softmax over a mixture of logistic models (with L2 regularization)."""
@@ -135,4 +156,3 @@ class MoeModel(models.BaseModel):
     final_probabilities = tf.reshape(final_probabilities_by_class_and_batch,
                                      [-1, vocab_size])
     return {"predictions": final_probabilities}
-  
