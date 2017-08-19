@@ -66,23 +66,25 @@ class LogisticModel(models.BaseModel):
 class JJModel(models.BaseModel):
 
   def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
+  	IMAGE_SIZE = 24
+  	CHANNELS=3 		
+  	input = tf.image.resize_image_with_crop_or_pad(model_input, IMAGE_SIZE, IMAGE_SIZE)
+  	input = tf.map_fn(lambda img: tf.image.random_flip_left_right(img), input)
   	with tf.variable_scope('Net') as sc:
-  		CHANNELS=3
-  		input = tf.map_fn(lambda img: tf.image.random_flip_left_right(img), model_input)
-  		net = slim.conv2d(input, 16, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv1')
+  		net = slim.conv2d(input, 32, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv1')
 	  	net = slim.max_pool2d(net, [2,2], stride=2,padding='SAME',scope='pool1')
-	  	net = tf.nn.lrn(net, 5, bias=1.0, alpha=0.001 / 9.0, beta=0.75,name='norm1')
-	  	net = slim.conv2d(net, 8, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv2')
+	  	net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,name='norm1')
+	  	net = slim.conv2d(net, 32, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv2')
 	  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool2')
-	  	net = tf.nn.lrn(net, 5, bias=1.0, alpha=0.001 / 9.0, beta=0.75,name='norm2')
-	  	net = slim.conv2d(net, 4, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv3')
-	  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool3')
+	  	net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,name='norm2')
 	  	net = slim.flatten(net)
 	  	net = slim.fully_connected(net, 400, activation_fn=tf.nn.relu,scope='fc_1')
 	  	net = slim.dropout(net,0.5)
+	  	net = slim.fully_connected(net, 200, activation_fn=tf.nn.relu,scope='fc_2')
+	  	net = slim.dropout(net,0.5)
 	  	output = slim.fully_connected(net, num_classes - 1, activation_fn=tf.nn.sigmoid,
 	  	weights_regularizer=slim.l2_regularizer(l2_penalty))
-	  	return {"predictions": output}    
+	  	return {"predictions": output}  
   	
 	
 
