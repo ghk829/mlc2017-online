@@ -14,9 +14,11 @@
 
 import math
 
+import models
 import tensorflow as tf
 import utils
-
+from tensorflow import flags
+FLAGS = flags.FLAGS
 import tensorflow.contrib.slim as slim
 
 """Contains the base class for models."""
@@ -45,3 +47,31 @@ class LogisticModel(BaseModel):
         net, num_classes, activation_fn=None,
         weights_regularizer=slim.l2_regularizer(l2_penalty))
     return {"predictions": output}
+  
+  
+
+class YIGModel(object):
+  """Inherit from this class when implementing new models."""
+
+  def create_model(self, model_input, num_classes = 10, l2_penalty = 1e-8, **unused_params):
+  	with tf.variable_scope('Net') as sc:
+  		IMAGE_SIZE = 50
+  		
+  		input = tf.image.resize_image_with_crop_or_pad(model_input, IMAGE_SIZE, IMAGE_SIZE)
+  		input = tf.map_fn(lambda img: tf.image.random_flip_left_right(img), input)
+  		input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), input)
+  		
+  		net = slim.conv2d(input, 8, [3, 3], stride=1, activation_fn = tf.nn.relu, padding='SAME', scope='conv1')
+	  	net = slim.max_pool2d(net, [2,2], stride=1, padding='SAME', scope='pool1')
+	  	net = slim.conv2d(net, 4, [3, 3], stride=1, activation_fn = tf.nn.relu, padding='SAME', scope='conv2')
+	  	net = slim.max_pool2d(net, [2,2], stride=1, padding='SAME', scope='pool2')
+	  	net = slim.flatten(net)
+	  	
+	  	net = slim.dropout(net,0.5)
+	  	
+	  	output = slim.fully_connected(net, num_classes, activation_fn=tf.nn.softmax,
+	  	weights_regularizer=slim.l2_regularizer(l2_penalty))
+	  	
+	  	return {"predictions": output}
+	  	
+  	raise NotImplementedError()
