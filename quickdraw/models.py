@@ -55,8 +55,7 @@ class LogisticModel(BaseModel):
 
 class ResnetModel(BaseModel):
 # %%
-  def create_model(self, model_input, n_outputs = 10,
-                     activation=tf.nn.relu, l2_penalty = 1e-8, **unused_params ):
+  def create_model(self, model_input, num_classes=10, l2_penalty=1e-8, **unused_params):
 
     # %%
     LayerBlock = namedtuple(
@@ -78,7 +77,7 @@ class ResnetModel(BaseModel):
     # First convolution expands to 64 channels and downsamples
     net = conv2d(model_input, 64, k_h=7, k_w=7,
                  name='conv1',
-                 activation=activation)
+                 activation=tf.nn.relu)
 
     # %%
     # Max pool and downsampling
@@ -98,17 +97,17 @@ class ResnetModel(BaseModel):
             name = 'block_%d/repeat_%d' % (block_i, repeat_i)
             conv = conv2d(net, block.bottleneck_size, k_h=1, k_w=1,
                           padding='VALID', stride_h=1, stride_w=1,
-                          activation=activation,
+                          activation=tf.nn.relu,
                           name=name + '/conv_in')
 
             conv = conv2d(conv, block.bottleneck_size, k_h=3, k_w=3,
                           padding='SAME', stride_h=1, stride_w=1,
-                          activation=activation,
+                          activation=tf.nn.relu,
                           name=name + '/conv_bottleneck')
 
             conv = conv2d(conv, block.num_filters, k_h=1, k_w=1,
                           padding='VALID', stride_h=1, stride_w=1,
-                          activation=activation,
+                          activation=tf.nn.relu,
                           name=name + '/conv_out')
 
             net = conv + net
@@ -133,6 +132,6 @@ class ResnetModel(BaseModel):
          net.get_shape().as_list()[3]])
 
     output = slim.fully_connected(
-        net, n_outputs, activation_fn = tf.nn.softmax,
+        net, num_classes, activation_fn = tf.nn.softmax,
         weights_regularizer=slim.l2_regularizer(l2_penalty))
     return {"predictions": output}
