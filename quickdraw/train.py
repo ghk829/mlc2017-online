@@ -31,6 +31,7 @@ from tensorflow import logging
 from tensorflow.python.client import device_lib
 import utils
 
+os.environ['TF_ENABLE_WINOGRAD_NONFUSED'] = '1'
 FLAGS = flags.FLAGS
 
 if __name__ == "__main__":
