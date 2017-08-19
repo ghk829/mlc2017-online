@@ -21,6 +21,10 @@ from tensorflow import flags
 FLAGS = flags.FLAGS
 import tensorflow.contrib.slim as slim
 
+from libs.connections import conv2d, linear
+from collections import namedtuple
+from math import sqrt
+
 """Contains the base class for models."""
 class BaseModel(object):
   """Inherit from this class when implementing new models."""
@@ -50,28 +54,79 @@ class LogisticModel(BaseModel):
   
   
 
-class YIGModel(object):
-  """Inherit from this class when implementing new models."""
+class ResnetModel(BaseModel):
+# %%
+  def residual_network(self, model_input, n_outputs = 10,
+						 activation=tf.nn.relu, l2_penalty = 1e-8 ):
+	# %%
+	LayerBlock = namedtuple(
+		'LayerBlock', ['num_repeats', 'num_filters', 'bottleneck_size'])
+	blocks = [LayerBlock(3, 128, 32),
+			  LayerBlock(3, 256, 64),
+			  LayerBlock(3, 512, 128),
+			  LayerBlock(3, 1024, 256)]
+	# %%
+	input_shape = model_input.get_shape().as_list()
+	if len(input_shape) == 2:
+		ndim = int(sqrt(input_shape[1]))
+		if ndim * ndim != input_shape[1]:
+			raise ValueError('input_shape should be square')
+		model_input = tf.reshape(model_input, [-1, ndim, ndim, 1])
+	# %%
+	# First convolution expands to 64 channels and downsamples
+	net = conv2d(model_input, 64, k_h=7, k_w=7,
+				 name='conv1',
+				 activation=activation)
+	# %%
+	# Max pool and downsampling
+	net = tf.nn.max_pool(
+		net, [1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')
+	# %%
+	# Setup first chain of resnets
+	net = conv2d(net, blocks[0].num_filters, k_h=1, k_w=1,
+				 stride_h=1, stride_w=1, padding='VALID', name='conv2')
+	# %%
+	# Loop through all res blocks
+	for block_i, block in enumerate(blocks):
+		for repeat_i in range(block.num_repeats):
 
-  def create_model(self, model_input, num_classes = 10, l2_penalty = 1e-8, **unused_params):
-  	with tf.variable_scope('Net') as sc:
-  		IMAGE_SIZE = 50
-  		
-  		input = tf.image.resize_image_with_crop_or_pad(model_input, IMAGE_SIZE, IMAGE_SIZE)
-  		input = tf.map_fn(lambda img: tf.image.random_flip_left_right(img), input)
-  		input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), input)
-  		
-  		net = slim.conv2d(input, 8, [3, 3], stride=1, activation_fn = tf.nn.relu, padding='SAME', scope='conv1')
-	  	net = slim.max_pool2d(net, [2,2], stride=1, padding='SAME', scope='pool1')
-	  	net = slim.conv2d(net, 4, [3, 3], stride=1, activation_fn = tf.nn.relu, padding='SAME', scope='conv2')
-	  	net = slim.max_pool2d(net, [2,2], stride=1, padding='SAME', scope='pool2')
-	  	net = slim.flatten(net)
-	  	
-	  	net = slim.dropout(net,0.5)
-	  	
-	  	output = slim.fully_connected(net, num_classes, activation_fn=tf.nn.softmax,
-	  	weights_regularizer=slim.l2_regularizer(l2_penalty))
-	  	
-	  	return {"predictions": output}
-	  	
-  	raise NotImplementedError()
+			name = 'block_%d/repeat_%d' % (block_i, repeat_i)
+			conv = conv2d(net, block.bottleneck_size, k_h=1, k_w=1,
+						  padding='VALID', stride_h=1, stride_w=1,
+						  activation=activation,
+						  name=name + '/conv_in')
+
+			conv = conv2d(conv, block.bottleneck_size, k_h=3, k_w=3,
+						  padding='SAME', stride_h=1, stride_w=1,
+						  activation=activation,
+						  name=name + '/conv_bottleneck')
+
+			conv = conv2d(conv, block.num_filters, k_h=1, k_w=1,
+						  padding='VALID', stride_h=1, stride_w=1,
+						  activation=activation,
+						  name=name + '/conv_out')
+
+			net = conv + net
+		try:
+			# upscale to the next block size
+			next_block = blocks[block_i + 1]
+			net = conv2d(net, next_block.num_filters, k_h=1, k_w=1,
+						 padding='SAME', stride_h=1, stride_w=1, bias=False,
+						 name='block_%d/conv_upscale' % block_i)
+		except IndexError:
+			pass
+	# %%
+	net = tf.nn.avg_pool(net,
+						 ksize=[1, net.get_shape().as_list()[1],
+								net.get_shape().as_list()[2], 1],
+						 strides=[1, 1, 1, 1], padding='VALID')
+	net = tf.reshape(
+		net,
+		[-1, net.get_shape().as_list()[1] *
+		 net.get_shape().as_list()[2] *
+		 net.get_shape().as_list()[3]])
+	
+	output = slim.fully_connected(
+		net, n_outputs, activation_fn = tf.nn.softmax,
+		weights_regularizer=slim.l2_regularizer(l2_penalty))
+	return {"predictions": output}
