@@ -271,11 +271,11 @@ def evaluate():
         num_readers=FLAGS.num_readers,
         batch_size=FLAGS.batch_size)
     logging.info("built evaluation graph")
-    image_id_batch = tf.get_collection("image_id_batch")[0]
-    prediction_batch = tf.get_collection("predictions")[0]
-    label_batch = tf.get_collection("labels")[0]
-    loss = tf.get_collection("loss")[0]
-    summary_op = tf.get_collection("summary_op")[0]
+    image_id_batch = tf.get_collection("image_id_batch")
+    prediction_batch = tf.get_collection("predictions")
+    label_batch = tf.get_collection("labels")
+    loss = tf.get_collection("loss")
+    summary_op = tf.get_collection("summary_op")
 
     saver = tf.train.Saver(tf.global_variables())
     summary_writer = tf.summary.FileWriter(
