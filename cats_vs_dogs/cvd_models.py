@@ -22,6 +22,34 @@ from tensorflow import flags
 FLAGS = flags.FLAGS
 import tensorflow.contrib.slim as slim
 
+class KHModel(models.BaseModel):
+
+  def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
+  	with tf.variable_scope('Net') as sc:
+  		IMAGE_SIZE = 24
+  		CHANNELS=3
+  		input = tf.image.resize_image_with_crop_or_pad(model_input, IMAGE_SIZE, IMAGE_SIZE)
+  		input = tf.map_fn(lambda img: tf.image.random_flip_left_right(img), input)
+  		input = tf.map_fn(lambda img: tf.image.random_brightness(img,max_delta=63), input)
+  		input = tf.map_fn(lambda img: tf.image.random_contrast(img,lower=0.2, upper=1.8), input)
+  		input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), input)
+	  	net = slim.conv2d(input, 32, [2, 2], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv1')
+	  	net = slim.max_pool2d(net, [2,2], stride=2,padding='SAME',scope='pool1')
+	  	net = slim.conv2d(net, 32, [2, 2], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv2')
+	  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool2')
+	  	net = slim.flatten(net)
+	  	net = slim.fully_connected(net, 32*32, activation_fn=tf.nn.relu,scope='fc_1')
+	  	net = slim.dropout(net,0.5)
+	  	net = slim.fully_connected(net, 32*32, activation_fn=tf.nn.relu,scope='fc_2')
+	  	net = slim.dropout(net,0.5)
+	  	output = slim.fully_connected(net, num_classes - 1, activation_fn=tf.nn.sigmoid,
+	  	weights_regularizer=slim.l2_regularizer(l2_penalty))
+	  	return {"predictions": output}
+  	
+  	
+  	
+  	
+  	
 class LogisticModel(models.BaseModel):
   """Logistic model with L2 regularization."""
 
@@ -42,17 +70,15 @@ class LogisticModel(models.BaseModel):
         weights_regularizer=slim.l2_regularizer(l2_penalty))
     return {"predictions": output}
     
-class MyModel(models.BaseModel):
 
-  def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
-  	net = slim.conv2d(model_input, 2, [2, 2], stride=1, padding='SAME', scope='conv1')
-  	net = slim.max_pool2d(net, [2,2], padding='SAME',scope='pool1')
-  	net = slim.conv2d(net, 3,[3,3],stride=2,padding='SAME',scope='conv2')
-  	net = slim.max_pool2d(net, [2,2], padding='SAME',scope='pool2')
-  	net = slim.flatten(net)
-  	output = slim.fully_connected(net, num_classes - 1, activation_fn=tf.nn.sigmoid,
-  	weights_regularizer=slim.l2_regularizer(l2_penalty))
-  	return {"predictions": output}
+
+
+
+
+
+
+
+
 
 class MoeModel(models.BaseModel):
   """A softmax over a mixture of logistic models (with L2 regularization)."""
@@ -109,51 +135,4 @@ class MoeModel(models.BaseModel):
     final_probabilities = tf.reshape(final_probabilities_by_class_and_batch,
                                      [-1, vocab_size])
     return {"predictions": final_probabilities}
-    
-    
-class CNNModel(models.BaseModel):
-  """CNN Model """
-  def create_model(self, model_input, num_classes=10, l2_penalty=1e-8, **unused_params):
-    """Creates a CNN model.
-    Args:
-      model_input: 'batch' x 'num_features' matrix of input features.
-      vocab_size: The number of classes in the dataset.
-    Returns:
-      A dictionary with a tensor containing the probability predictions of the
-      model in the 'predictions' key. The dimensions of the tensor are
-      batch_size x num_classes."""
-    model_input = tf.reshape(model_input,[-1,512,512,1])
-    """strides=1
-    p_keep_conv=0.5
-    p_keep_hidden=0.7
-    W = tf.Variable(tf.random_normal([3, 3, 6, 32]))
-    w = tf.Variable(tf.random_normal([3, 3, 1, 32]))
-    w2 = tf.Variable(tf.random_normal([3, 3, 32, 64]))     
-    w3 = tf.Variable(tf.random_normal([3, 3, 64, 128]))    
-    w4 = tf.Variable(tf.random_normal([128 * 4 * 4, 625])) 
-    w_o = tf.Variable(tf.random_normal([625, 10]))"""
-    net = slim.conv2d(model_input,32,[5,5],scope='convl')
-    net = slim.flatten(net)
-    """l1a = tf.nn.relu(tf.nn.conv2d(model_input, w,                       
-                        strides=[1, 1, 1, 1], padding='SAME'))
-    l1 = tf.nn.max_pool(l1a, ksize=[1, 2, 2, 1],             
-                        strides=[1, 2, 2, 1], padding='SAME')
-    l1 = tf.nn.dropout(l1, p_keep_conv)
-    l2a = tf.nn.relu(tf.nn.conv2d(l1, w2,                     
-                        strides=[1, 1, 1, 1], padding='SAME'))
-    l2 = tf.nn.max_pool(l2a, ksize=[1, 2, 2, 1],              
-                        strides=[1, 2, 2, 1], padding='SAME')
-    l2 = tf.nn.dropout(l2, p_keep_conv)
-    l3a = tf.nn.relu(tf.nn.conv2d(l2, w3,                     # l3a shape=(?, 7, 7, 128)
-                        strides=[1, 1, 1, 1], padding='SAME'))
-    l3 = tf.nn.max_pool(l3a, ksize=[1, 2, 2, 1],              # l3 shape=(?, 4, 4, 128)
-                        strides=[1, 2, 2, 1], padding='SAME')
-    l3 = tf.reshape(l3, [-1, w4.get_shape().as_list()[0]])    # reshape to (?, 2048)
-    l3 = tf.nn.dropout(l3, p_keep_conv)
-    l4 = tf.nn.relu(tf.matmul(l3, w4))
-    l4 = tf.nn.dropout(l4, p_keep_hidden)"""
-    output = slim.fully_connected(
-        net, num_classes - 1, activation_fn=tf.nn.sigmoid,
-        weights_regularizer=slim.l2_regularizer(l2_penalty))
-    return {"predictions": output}
   
