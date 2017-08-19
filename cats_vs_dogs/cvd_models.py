@@ -25,8 +25,7 @@ import tensorflow.contrib.slim as slim
 class KHModel(models.BaseModel):
 
   def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
-  	input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), input)
-  	input = tf.image.rgb_to_grayscale(input)
+  	input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), model_input)
   	with tf.variable_scope('Net') as sc:
   		net = slim.conv2d(input, 32, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv1')
 	  	net = slim.max_pool2d(net, [2,2], stride=2,padding='SAME',scope='pool1')
@@ -70,11 +69,12 @@ class JJModel(models.BaseModel):
   	with tf.variable_scope('Net') as sc:
   		CHANNELS=3
   		input = tf.map_fn(lambda img: tf.image.random_flip_left_right(img), model_input)
-  		input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), input)
-	  	net = slim.conv2d(input, 8, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv1')
+  		net = slim.conv2d(input, 16, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv1')
 	  	net = slim.max_pool2d(net, [2,2], stride=2,padding='SAME',scope='pool1')
+	  	net = tf.nn.lrn(net, 5, bias=1.0, alpha=0.001 / 9.0, beta=0.75,name='norm1')
 	  	net = slim.conv2d(net, 8, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv2')
 	  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool2')
+	  	net = tf.nn.lrn(net, 5, bias=1.0, alpha=0.001 / 9.0, beta=0.75,name='norm2')
 	  	net = slim.conv2d(net, 4, [3, 3], stride=1, activation_fn = tf.nn.relu,padding='SAME', scope='conv3')
 	  	net = slim.max_pool2d(net, [2,2], stride=2, padding='SAME',scope='pool3')
 	  	net = slim.flatten(net)
