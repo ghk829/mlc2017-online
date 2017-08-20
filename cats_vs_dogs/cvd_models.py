@@ -21,31 +21,80 @@ import utils
 from tensorflow import flags
 FLAGS = flags.FLAGS
 import tensorflow.contrib.slim as slim
-def block8(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
-  """Builds the 8x8 resnet block."""
-  with tf.variable_scope(scope, 'Block8', [net], reuse=reuse):
-    with tf.variable_scope('Branch_0'):
-      tower_conv = slim.conv2d(net, 192, 1, scope='Conv2d_1x1')
-    with tf.variable_scope('Branch_1'):
-      tower_conv1_0 = slim.conv2d(net, 192, 1, scope='Conv2d_0a_1x1')
-      tower_conv1_1 = slim.conv2d(tower_conv1_0, 224, [1, 3],
-                                  scope='Conv2d_0b_1x3')
-      tower_conv1_2 = slim.conv2d(tower_conv1_1, 256, [3, 1],
-                                  scope='Conv2d_0c_3x1')
-    mixed = tf.concat(axis=3, values=[tower_conv, tower_conv1_2])
-    up = slim.conv2d(mixed, net.get_shape()[3], 1, normalizer_fn=None,
-                     activation_fn=None, scope='Conv2d_1x1')
-    net += scale * up
-    if activation_fn:
-      net = activation_fn(net)
-  return net
+
+def block1(net, scale=1.0, activation_fn=tf.nn.relu, padding='SAME',scope=None, reuse=None):  
+	with tf.variable_scope(scope, 'Block', [net], reuse=reuse):
+		with tf.variable_scope('Branch_0'):
+		  tower_conv = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
+		  tower_conv_1 = slim.conv2d(tower_conv, 384, 3, stride=2,
+									 padding=padding,
+									 scope='Conv2d_1a_3x3')
+		with tf.variable_scope('Branch_1'):
+		  tower_conv1 = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
+		  tower_conv1_1 = slim.conv2d(tower_conv1, 288, 3, stride=2,
+									  padding=padding,
+									  scope='Conv2d_1a_3x3')
+		with tf.variable_scope('Branch_2'):
+		  tower_conv2 = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
+		  tower_conv2_1 = slim.conv2d(tower_conv2, 288, 3,
+									  scope='Conv2d_0b_3x3')
+		  tower_conv2_2 = slim.conv2d(tower_conv2_1, 320, 3, stride=2,
+									  padding=padding,
+									  scope='Conv2d_1a_3x3')
+		with tf.variable_scope('Branch_3'):
+		  tower_pool = slim.max_pool2d(net, 3, stride=2,
+									   padding=padding,
+									   scope='MaxPool_1a_3x3')
+		net = tf.concat(
+			[tower_conv_1, tower_conv1_1, tower_conv2_2, tower_pool], 3)
+		net = activation_fn(net)
+	return net
+def block2(net, scale=1.0, activation_fn=tf.nn.relu, padding='SAME',scope=None, reuse=None):  
+	with tf.variable_scope(scope, 'Block', [net], reuse=reuse):
+		with tf.variable_scope('Branch_0'):
+		  tower_conv = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
+		  tower_conv_1 = slim.conv2d(tower_conv, 384, 3, stride=2,
+									 padding=padding,
+									 scope='Conv2d_1a_3x3')
+		with tf.variable_scope('Branch_1'):
+		  tower_conv1 = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
+		  tower_conv1_1 = slim.conv2d(tower_conv1, 288, 3, stride=2,
+									  padding=padding,
+									  scope='Conv2d_1a_3x3')
+		with tf.variable_scope('Branch_3'):
+		  tower_pool = slim.max_pool2d(net, 3, stride=2,
+									   padding=padding,
+									   scope='MaxPool_1a_3x3')
+		net = tf.concat(
+			[tower_conv_1, tower_conv1_1, tower_pool], 3)
+		net = activation_fn(net)
+	return net
+def block3(net, scale=1.0, activation_fn=tf.nn.relu, padding='SAME',scope=None, reuse=None):  
+	with tf.variable_scope(scope, 'Block', [net], reuse=reuse):
+		with tf.variable_scope('Branch_0'):
+		  tower_conv = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
+		  tower_conv_1 = slim.conv2d(tower_conv, 384, 3, stride=2,
+									 padding=padding,
+									 scope='Conv2d_1a_3x3')
+		with tf.variable_scope('Branch_1'):
+		  tower_conv1 = slim.conv2d(net, 256, 1, scope='Conv2d_0a_1x1')
+		  tower_conv1_1 = slim.conv2d(tower_conv1, 288, 3, stride=2,
+									  padding=padding,
+									  scope='Conv2d_1a_3x3')
+		net = tf.concat(
+			[tower_conv_1, tower_conv1_1], 3)
+		net = activation_fn(net)
+	return net
 class KHModel(models.BaseModel):
 
   def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
   	input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), model_input,name='standardize')
-  	#block8 9번 반복...
-  	net = slim.repeat(input, 9, block8, scale=0.20)
+  	net1 = slim.repeat(input, 3, block1, scale=0.20)
+  	net2 = slim.repeat(input, 3, block2, scale=0.20)
+  	net3 = slim.repeat(input, 3, block2, scale=0.20)
+  	net = tf.concat([net1, net2, net3], 3)
 	net=slim.flatten(net)
+	net=slim.fully_connected(net,net.get_shape().as_list()[1]*3)
 	net=slim.fully_connected(net,net.get_shape().as_list()[1]*2)
 	output = slim.fully_connected(net,num_classes - 1, activation_fn=tf.nn.sigmoid,
 	weights_regularizer=slim.l2_regularizer(l2_penalty))
