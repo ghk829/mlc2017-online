@@ -13,8 +13,6 @@
 # limitations under the License.
 
 import math
-
-import models
 import tensorflow as tf
 import utils
 from tensorflow import flags
