@@ -21,94 +21,49 @@ from tensorflow import flags
 FLAGS = flags.FLAGS
 import tensorflow.contrib.slim as slim
 
-from libs.connections import conv2d, linear
-from collections import namedtuple
-from math import sqrt
+import ops as op
 
-"""Contains the base class for models."""
-class BaseModel(object):
-  """Inherit from this class when implementing new models."""
+class alexnetModel(BaseModel):
 
-  def create_model(self, unused_model_input, **unused_params):
-    raise NotImplementedError()
-
-class ResnetModel(BaseModel):
-# %%
   def create_model(self, model_input, num_classes=10, l2_penalty=1e-8, **unused_params):
 
-    # %%
-    LayerBlock = namedtuple(
-        'LayerBlock', ['num_repeats', 'num_filters', 'bottleneck_size'])
-    blocks = [LayerBlock(3, 128, 32),
-              LayerBlock(3, 256, 64),
-              LayerBlock(3, 512, 128),
-              LayerBlock(3, 1024, 256)]
+    with tf.name_scope('conv1layer'):
+        conv1 = op.conv(model_input, 7, 96, 3)
+        conv1 = op.lrn(conv1)
+        conv1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='VALID')
 
-    # %%
-    input_shape = model_input.get_shape().as_list()
-    if len(input_shape) == 2:
-        ndim = int(sqrt(input_shape[1]))
-        if ndim * ndim != input_shape[1]:
-            raise ValueError('input_shape should be square')
-        model_input = tf.reshape(model_input, [-1, ndim, ndim, 1])
+    # conv layer 2
+    with tf.name_scope('conv2layer'):
+        conv2 = op.conv(conv1, 5, 256, 1, 1.0)
+        conv2 = op.lrn(conv2)
+        conv2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='VALID')
 
-    # %%
-    # First convolution expands to 64 channels and downsamples
-    net = conv2d(model_input, 64, k_h=7, k_w=7,
-                 name='conv1',
-                 activation=tf.nn.relu)
+    # conv layer 3
+    with tf.name_scope('conv3layer'):
+        conv3 = op.conv(conv2, 3, 384, 1)
 
-    # %%
-    # Max pool and downsampling
-    net = tf.nn.max_pool(
-        net, [1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')
+    # conv layer 4
+    with tf.name_scope('conv4layer'):
+        conv4 = op.conv(conv3, 3, 384, 1, 1.0)
 
-    # %%
-    # Setup first chain of resnets
-    net = conv2d(net, blocks[0].num_filters, k_h=1, k_w=1,
-                 stride_h=1, stride_w=1, padding='VALID', name='conv2')
+    # conv layer 5
+    with tf.name_scope('conv5layer'):
+        conv5 = op.conv(conv4, 3, 256, 1, 1.0)
+        conv5 = tf.nn.max_pool(conv5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
-    # %%
-    # Loop through all res blocks
-    for block_i, block in enumerate(blocks):
-        for repeat_i in range(block.num_repeats):
+    # fc layer 1
+    with tf.name_scope('fc1layer'):
+        fc1 = op.fc(conv5, 4096, 1.0)
+        fc1 = tf.nn.dropout(fc1, 0.5)
 
-            name = 'block_%d/repeat_%d' % (block_i, repeat_i)
-            conv = conv2d(net, block.bottleneck_size, k_h=1, k_w=1,
-                          padding='VALID', stride_h=1, stride_w=1,
-                          activation=tf.nn.relu,
-                          name=name + '/conv_in')
+    # fc layer 2
+    with tf.name_scope('fc2layer'):
+        fc2 = op.fc(fc1, 4096, 1.0)
+        fc2 = tf.nn.dropout(fc2, 0.5)
 
-            conv = conv2d(conv, block.bottleneck_size, k_h=3, k_w=3,
-                          padding='SAME', stride_h=1, stride_w=1,
-                          activation=tf.nn.relu,
-                          name=name + '/conv_bottleneck')
-
-            conv = conv2d(conv, block.num_filters, k_h=1, k_w=1,
-                          padding='VALID', stride_h=1, stride_w=1,
-                          activation=tf.nn.relu,
-                          name=name + '/conv_out')
-
-            net = conv + net
-        try:
-            # upscale to the next block size
-            next_block = blocks[block_i + 1]
-            net = conv2d(net, next_block.num_filters, k_h=1, k_w=1,
-                         padding='SAME', stride_h=1, stride_w=1, bias=False,
-                         name='block_%d/conv_upscale' % block_i)
-        except IndexError:
-            pass
-
-    # %%
-    net = tf.nn.avg_pool(net,
-                         ksize=[1, net.get_shape().as_list()[1],
-                                net.get_shape().as_list()[2], 1],
-                         strides=[1, 1, 1, 1], padding='VALID')
-    net = tf.reshape(
-        net,
-        [-1, net.get_shape().as_list()[1] *
-         net.get_shape().as_list()[2] *
-         net.get_shape().as_list()[3]])
+    # fc layer 3 - output
+    with tf.name_scope('fc3layer'):
+        net = op.fc(fc2, num_classes, 1.0, None)
 
     output = slim.fully_connected(
         net, num_classes, activation_fn = tf.nn.softmax,
@@ -116,23 +71,11 @@ class ResnetModel(BaseModel):
     return {"predictions": output}
 
   
-  class LogisticModel(BaseModel):
-  """Logistic model with L2 regularization."""
+class LogisticModel(BaseModel):
 
   def create_model(self, model_input, num_classes=10, l2_penalty=1e-8, **unused_params):
-    """Creates a logistic model.
-
-    Args:
-      model_input: 'batch' x 'num_features' matrix of input features.
-      num_classes: The number of classes in the dataset.
-
-    Returns:
-      A dictionary with a tensor containing the probability predictions of the
-      model in the 'predictions' key. The dimensions of the tensor are
-      batch_size x num_classes."""
     net = slim.flatten(model_input)
     output = slim.fully_connected(
         net, num_classes, activation_fn=None,
         weights_regularizer=slim.l2_regularizer(l2_penalty))
     return {"predictions": output}
-  
