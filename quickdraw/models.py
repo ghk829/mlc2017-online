@@ -86,7 +86,7 @@ class alexnetModel(BaseModel):
     fc3_biases = tf.Variable(tf.constant(1.0, shape=[10], dtype=tf.float32))
     fc3 = tf.matmul(fc2_drop, fc3_weights)
     net = tf.nn.bias_add(fc3, fc3_biases)
-
+    net = slim.flatten(net)
     output = slim.fully_connected(
         net, num_classes, activation_fn = tf.nn.softmax,
         weights_regularizer=slim.l2_regularizer(l2_penalty))
