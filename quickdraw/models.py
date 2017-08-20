@@ -13,12 +13,18 @@
 # limitations under the License.
 
 import math
+
 import tensorflow as tf
 import utils
-from tensorflow import flags
-FLAGS = flags.FLAGS
+
 import tensorflow.contrib.slim as slim
 
+"""Contains the base class for models."""
+class BaseModel(object):
+  """Inherit from this class when implementing new models."""
+
+  def create_model(self, unused_model_input, **unused_params):
+    raise NotImplementedError()
 
 class alexnetModel(BaseModel):
 
@@ -65,7 +71,7 @@ class alexnetModel(BaseModel):
     conv5_pool = tf.nn.max_pool(conv5_relu, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
     # fc layer 1
-    fc1_weights = tf.Variable(tf.random_normal([256 * 3 * 3, 4096], dtype=tf.float32, stddev=0.01))
+    fc1_weights = tf.Variable(tf.random_normal([256 * 256 * 98, 4096], dtype=tf.float32, stddev=0.01))
     fc1_biases = tf.Variable(tf.constant(1.0, shape=[4096], dtype=tf.float32))
     conv5_reshape = tf.reshape(conv5_pool, [-1, fc1_weights.get_shape().as_list()[0]])
     fc1 = tf.matmul(conv5_reshape, fc1_weights)
@@ -91,7 +97,6 @@ class alexnetModel(BaseModel):
         net, num_classes, activation_fn = tf.nn.softmax,
         weights_regularizer=slim.l2_regularizer(l2_penalty))
     return {"predictions": output}
-
   
 class LogisticModel(BaseModel):
 
