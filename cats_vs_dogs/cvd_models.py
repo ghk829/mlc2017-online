@@ -43,22 +43,13 @@ class KHModel(models.BaseModel):
 
   def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
   	input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), model_input,name='standardize')
-  	with slim.arg_scope([slim.batch_norm], is_training=False):
-  		with slim.arg_scope([slim.conv2d, slim.max_pool2d, slim.avg_pool2d],stride=1, padding='SAME'):
-  			with tf.variable_scope('Mixed_7a'):
-  				with tf.variable_scope('Branch_0'):
-  					tower_conv = slim.conv2d(input,32, [2,2], scope='1_layer')
-  				with tf.variable_scope('Branch_1'):
-  					tower_conv1 = slim.conv2d(input, 32, [2,2], scope='2_layer2')
-  				with tf.variable_scope('Branch_2'):
-  					tower_conv2 = slim.conv2d(input, 32, [2,2], scope='Conv2d_0a_1x1')
-  				with tf.variable_scope('Branch_3'):
-  					tower_pool = slim.conv2d(input, 3, [2,2],scope='Conv2d_0a_3x3')
-			net = tf.concat([tower_conv, tower_conv1, tower_conv2, tower_pool],3)
-            net=slim.flatten(net)
-            output = slim.fully_connected(net,800)
-            output = slim.fully_connected(net,num_classes - 1, activation_fn=tf.nn.sigmoid)
-            return {"predictions": output}
+  	#block8 9번 반복...
+  	net = slim.repeat(input, 9, block8, scale=0.20)
+	net=slim.flatten(net)
+	net=slim.fully_connected(net,net.get_shape().as_list()[1]*2)
+	output = slim.fully_connected(net,num_classes - 1, activation_fn=tf.nn.sigmoid,
+	weights_regularizer=slim.l2_regularizer(l2_penalty))
+	return {"predictions": output}
 class LogisticModel(models.BaseModel):
 	  """Logistic model with L2 regularization."""
 	
