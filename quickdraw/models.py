@@ -21,49 +21,73 @@ from tensorflow import flags
 FLAGS = flags.FLAGS
 import tensorflow.contrib.slim as slim
 
-import ops as op
 
 class alexnetModel(BaseModel):
 
   def create_model(self, model_input, num_classes=10, l2_penalty=1e-8, **unused_params):
 
-    with tf.name_scope('conv1layer'):
-        conv1 = op.conv(model_input, 7, 96, 3)
-        conv1 = op.lrn(conv1)
-        conv1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='VALID')
+    # conv layer 1
+    conv1_weights = tf.Variable(tf.random_normal([7, 7, 1, 96], dtype=tf.float32, stddev=0.01))
+    conv1_biases = tf.Variable(tf.constant(0.0, shape=[96], dtype=tf.float32))
+    conv1 = tf.nn.conv2d(model_input, conv1_weights, [1, 3, 3, 1], padding='SAME')
+    conv1 = tf.nn.bias_add(conv1, conv1_biases)
+    conv1_relu = tf.nn.relu(conv1)
+    conv1_norm = tf.nn.local_response_normalization(conv1_relu, depth_radius=2, alpha=0.0001, beta=0.75, bias=1.0)
+    conv1_pool = tf.nn.max_pool(conv1_norm, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='VALID')
 
     # conv layer 2
-    with tf.name_scope('conv2layer'):
-        conv2 = op.conv(conv1, 5, 256, 1, 1.0)
-        conv2 = op.lrn(conv2)
-        conv2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='VALID')
+    conv2_weights = tf.Variable(tf.random_normal([5, 5, 96, 256], dtype=tf.float32, stddev=0.01))
+    conv2_biases = tf.Variable(tf.constant(1.0, shape=[256], dtype=tf.float32))
+    conv2 = tf.nn.conv2d(conv1_pool, conv2_weights, [1, 1, 1, 1], padding='SAME')
+    conv2 = tf.nn.bias_add(conv2, conv2_biases)
+    conv2_relu = tf.nn.relu(conv2)
+    conv2_norm = tf.nn.local_response_normalization(conv2_relu)
+    conv2_pool = tf.nn.max_pool(conv2_norm, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='VALID')
 
     # conv layer 3
-    with tf.name_scope('conv3layer'):
-        conv3 = op.conv(conv2, 3, 384, 1)
+    conv3_weights = tf.Variable(tf.random_normal([3, 3, 256, 384], dtype=tf.float32, stddev=0.01))
+    conv3_biases = tf.Variable(tf.constant(0.0, shape=[384], dtype=tf.float32))
+    conv3 = tf.nn.conv2d(conv2_pool, conv3_weights, [1, 1, 1, 1], padding='SAME')
+    conv3 = tf.nn.bias_add(conv3, conv3_biases)
+    conv3_relu = tf.nn.relu(conv3)
 
     # conv layer 4
-    with tf.name_scope('conv4layer'):
-        conv4 = op.conv(conv3, 3, 384, 1, 1.0)
+    conv4_weights = tf.Variable(tf.random_normal([3, 3, 384, 384], dtype=tf.float32, stddev=0.01))
+    conv4_biases = tf.Variable(tf.constant(1.0, shape=[384], dtype=tf.float32))
+    conv4 = tf.nn.conv2d(conv3_relu, conv4_weights, [1, 1, 1, 1], padding='SAME')
+    conv4 = tf.nn.bias_add(conv4, conv4_biases)
+    conv4_relu = tf.nn.relu(conv4)
 
     # conv layer 5
-    with tf.name_scope('conv5layer'):
-        conv5 = op.conv(conv4, 3, 256, 1, 1.0)
-        conv5 = tf.nn.max_pool(conv5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
+    conv5_weights = tf.Variable(tf.random_normal([3, 3, 384, 256], dtype=tf.float32, stddev=0.01))
+    conv5_biases = tf.Variable(tf.constant(1.0, shape=[256], dtype=tf.float32))
+    conv5 = tf.nn.conv2d(conv4_relu, conv5_weights, [1, 1, 1, 1], padding='SAME')
+    conv5 = tf.nn.bias_add(conv5, conv5_biases)
+    conv5_relu = tf.nn.relu(conv5)
+    conv5_pool = tf.nn.max_pool(conv5_relu, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
     # fc layer 1
-    with tf.name_scope('fc1layer'):
-        fc1 = op.fc(conv5, 4096, 1.0)
-        fc1 = tf.nn.dropout(fc1, 0.5)
+    fc1_weights = tf.Variable(tf.random_normal([256 * 3 * 3, 4096], dtype=tf.float32, stddev=0.01))
+    fc1_biases = tf.Variable(tf.constant(1.0, shape=[4096], dtype=tf.float32))
+    conv5_reshape = tf.reshape(conv5_pool, [-1, fc1_weights.get_shape().as_list()[0]])
+    fc1 = tf.matmul(conv5_reshape, fc1_weights)
+    fc1 = tf.nn.bias_add(fc1, fc1_biases)
+    fc1_relu = tf.nn.relu(fc1)
+    fc1_drop = tf.nn.dropout(fc1_relu, 0.5)
 
     # fc layer 2
-    with tf.name_scope('fc2layer'):
-        fc2 = op.fc(fc1, 4096, 1.0)
-        fc2 = tf.nn.dropout(fc2, 0.5)
+    fc2_weights = tf.Variable(tf.random_normal([4096, 4096], dtype=tf.float32, stddev=0.01))
+    fc2_biases = tf.Variable(tf.constant(1.0, shape=[4096], dtype=tf.float32))
+    fc2 = tf.matmul(fc1_drop, fc2_weights)
+    fc2 = tf.nn.bias_add(fc2, fc2_biases)
+    fc2_relu = tf.nn.relu(fc2)
+    fc2_drop = tf.nn.dropout(fc2_relu, 0.5)
 
     # fc layer 3 - output
-    with tf.name_scope('fc3layer'):
-        net = op.fc(fc2, num_classes, 1.0, None)
+    fc3_weights = tf.Variable(tf.random_normal([4096, 10], dtype=tf.float32, stddev=0.01))
+    fc3_biases = tf.Variable(tf.constant(1.0, shape=[10], dtype=tf.float32))
+    fc3 = tf.matmul(fc2_drop, fc3_weights)
+    net = tf.nn.bias_add(fc3, fc3_biases)
 
     output = slim.fully_connected(
         net, num_classes, activation_fn = tf.nn.softmax,
