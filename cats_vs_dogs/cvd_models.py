@@ -89,12 +89,8 @@ class KHModel(models.BaseModel):
 
   def create_model(self, model_input, num_classes=2, l2_penalty=1e-8, **unused_params):
   	input = tf.map_fn(lambda img: tf.image.per_image_standardization(img), model_input,name='standardize')
-  	net1 = slim.repeat(input, 3, block1, scale=0.20)
-  	net2 = slim.repeat(input, 3, block2, scale=0.20)
-  	net3 = slim.repeat(input, 3, block2, scale=0.20)
-  	net = tf.concat([net1, net2, net3], 3)
+  	net = slim.repeat(input, 9, block1)
 	net=slim.flatten(net)
-	net=slim.fully_connected(net,net.get_shape().as_list()[1]*3)
 	net=slim.fully_connected(net,net.get_shape().as_list()[1]*2)
 	output = slim.fully_connected(net,num_classes - 1, activation_fn=tf.nn.sigmoid,
 	weights_regularizer=slim.l2_regularizer(l2_penalty))
